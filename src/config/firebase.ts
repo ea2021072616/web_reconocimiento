@@ -13,7 +13,7 @@ const firebaseConfig = {
 
 // Initialize Firebase solo si hay configuracion (evita crash en UI al iniciar sin env variables)
 let app;
-let db: any;
+let db: ReturnType<typeof getFirestore> | null = null;
 
 try {
     app = initializeApp(firebaseConfig);
@@ -22,4 +22,4 @@ try {
     console.warn("⚠️ Advertencia: Variables de entorno de Firebase no configuradas.");
 }
 
-export { db };
+export { db, app };
