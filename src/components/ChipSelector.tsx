@@ -30,7 +30,7 @@ export const ChipSelector = ({ label, opciones, seleccionados, onChange }: ChipS
     <div className="flex flex-col gap-2">
       <label className="text-sm font-semibold text-on-surface">{label}</label>
       <div className="flex flex-wrap gap-2">
-        {opciones.map(opcion => {
+        {Array.from(new Set([...opciones, ...seleccionados])).map(opcion => {
           const isSelected = seleccionados.includes(opcion);
           return (
             <button

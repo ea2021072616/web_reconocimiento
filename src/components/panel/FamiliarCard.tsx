@@ -22,7 +22,7 @@ export const FamiliarCard = ({ persona, onEdit, onDelete }: FamiliarCardProps) =
         <div className="flex items-center gap-2 mb-1">
           <h4 className="font-semibold text-primary text-sm truncate">{persona.nombres} {persona.apellidos}</h4>
           {persona.esTitular ? (
-            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium flex-shrink-0">Titular</span>
+            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium flex-shrink-0">Tú</span>
           ) : (
             <span className="text-xs bg-secondary/10 text-secondary px-2 py-0.5 rounded-full font-medium flex-shrink-0">
               {'relacion' in persona ? persona.relacion : 'Familiar'}

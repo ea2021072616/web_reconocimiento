@@ -98,13 +98,35 @@ export const registrarPersona = async (
 export const crearVinculoFamiliar = async (titularDni: string, familiarDni: string, relacion: string): Promise<void> => {
   if (!db) throw new Error('Base de datos no inicializada.');
   const id = `${titularDni}_${familiarDni}`;
-  await setDoc(doc(db, 'vinculos_familiares', id), {
-    id,
-    titularDni,
-    familiarDni,
-    relacion,
-    creadoEn: serverTimestamp(),
-  });
+  const docRef = doc(db, 'vinculos_familiares', id);
+  const docSnap = await getDoc(docRef);
+  
+  if (docSnap.exists()) {
+    await setDoc(docRef, {
+      relacion,
+      actualizadoEn: serverTimestamp(),
+    }, { merge: true });
+  } else {
+    await setDoc(docRef, {
+      id,
+      titularDni,
+      familiarDni,
+      relacion,
+      creadoEn: serverTimestamp(),
+      actualizadoEn: serverTimestamp(),
+    });
+  }
+};
+
+/**
+ * Verifica si ya existe un vínculo familiar entre el titular y el familiar
+ */
+export const verificarVinculoExiste = async (titularDni: string, familiarDni: string): Promise<boolean> => {
+  if (!db) throw new Error('Base de datos no inicializada.');
+  const id = `${titularDni}_${familiarDni}`;
+  const docRef = doc(db, 'vinculos_familiares', id);
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists();
 };
 
 /**

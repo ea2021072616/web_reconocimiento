@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
@@ -9,7 +9,8 @@ import { RecoverPasswordForm } from '../components/auth/RecoverPasswordForm';
 type AuthView = 'login' | 'register' | 'recover';
 
 export function AuthPage() {
-  const [view, setView] = useState<AuthView>('login');
+  const location = useLocation();
+  const [view, setView] = useState<AuthView>(location.state?.view || 'login');
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
 

@@ -9,6 +9,7 @@ import { RegistroPropio } from '../components/panel/RegistroPropio';
 import { RegistroFamiliar } from '../components/panel/RegistroFamiliar';
 import { ContactoEmergenciaForm } from '../components/panel/ContactoEmergencia';
 import { FamiliarCard } from '../components/panel/FamiliarCard';
+import { FamiliarTreeCard } from '../components/panel/FamiliarTreeCard';
 import { ContactoCard } from '../components/panel/ContactoCard';
 
 type PanelView =
@@ -34,6 +35,8 @@ export function PanelPage() {
   const [contactoEditando, setContactoEditando] = useState<ContactoEmergencia | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [showDeleteContacto, setShowDeleteContacto] = useState<string | null>(null);
+  const [isTreeView, setIsTreeView] = useState(false);
+  const [selectedFamiliarModal, setSelectedFamiliarModal] = useState<FamiliarData | PersonaData | null>(null);
 
   // Redirect si no está logueado
   useEffect(() => {
@@ -145,6 +148,10 @@ export function PanelPage() {
   };
 
   if (!usuario) return null;
+
+  const ancestros = familiares.filter(f => ['Padre/Madre', 'Abuelo/a', 'Tío/a', 'Suegro/a'].includes(f.relacion));
+  const mismoNivel = familiares.filter(f => ['Pareja', 'Hermano/a', 'Primo/a', 'Cuñado/a', 'Otro'].includes(f.relacion));
+  const descendientes = familiares.filter(f => ['Hijo/a', 'Nieto/a', 'Sobrino/a'].includes(f.relacion));
 
   return (
     <div className="min-h-screen bg-background">
@@ -332,36 +339,116 @@ export function PanelPage() {
                       <span className="material-symbols-outlined text-lg">account_tree</span>
                       Red Familiar
                     </h3>
+                    <button
+                      onClick={() => setIsTreeView(!isTreeView)}
+                      className={`text-sm font-bold px-4 py-2 rounded-full transition-all flex items-center gap-2 cursor-pointer border shadow-sm hover:shadow hover:-translate-y-0.5 active:translate-y-0 ${
+                        isTreeView 
+                          ? 'bg-primary text-white border-primary' 
+                          : 'bg-white text-primary border-primary/30 hover:border-primary/60 hover:bg-primary/5'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        {isTreeView ? 'format_list_bulleted' : 'account_tree'}
+                      </span>
+                      {isTreeView ? 'Vista Clásica' : 'Vista de Árbol'}
+                    </button>
                   </div>
                   
                   {titular ? (
-                    <div className="relative">
-                      {/* Nodo Raíz: Titular */}
-                      <div className="relative z-10">
-                        <FamiliarCard
-                          persona={titular}
-                          onEdit={() => { setView('editar-propio'); }}
-                          onDelete={() => { /* No se puede eliminar titular */ }}
-                        />
-                      </div>
-
-                      {/* Ramas: Familiares */}
-                      {familiares.length > 0 && (
-                        <div className="relative mt-4 ml-6 md:ml-12 border-l-2 border-outline-variant/60 space-y-4 pb-4">
-                          {familiares.map((f) => (
-                            <div key={f.vinculoId} className="relative pl-8">
-                              {/* Línea conectora horizontal */}
-                              <div className="absolute top-1/2 left-0 w-8 h-[2px] bg-outline-variant/60 -translate-y-1/2"></div>
-                              <FamiliarCard
-                                persona={f}
-                                onEdit={() => { setFamiliarEditando(f); setView('editar-familiar'); }}
-                                onDelete={() => setShowDeleteConfirm(f.vinculoId)}
-                              />
+                    isTreeView ? (
+                      <div className="flex flex-col items-center gap-4 py-4 overflow-x-auto w-full">
+                        {/* Ancestros */}
+                        {ancestros.length > 0 && (
+                          <div className="flex flex-col items-center w-full">
+                            <div className="flex flex-wrap justify-center gap-4 w-full">
+                              {ancestros.map(f => (
+                                <div key={f.vinculoId} className="w-full max-w-[280px]">
+                                  <FamiliarTreeCard
+                                    persona={f}
+                                    onClick={() => setSelectedFamiliarModal(f)}
+                                  />
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                            <div className="w-px h-8 bg-outline-variant/80 mt-4"></div>
+                          </div>
+                        )}
+
+                        {/* Tú + Mismo Nivel */}
+                        <div className="flex flex-col lg:flex-row items-center justify-center gap-6 relative w-full">
+                          {/* El Titular */}
+                          <div className="w-full max-w-[300px] relative z-10 ring-2 ring-primary/30 rounded-2xl shadow-lg bg-surface">
+                            <FamiliarTreeCard
+                              persona={titular}
+                              onClick={() => setSelectedFamiliarModal(titular)}
+                            />
+                          </div>
+
+                          {/* Mismo Nivel */}
+                          {mismoNivel.length > 0 && (
+                            <div className="flex flex-col gap-4 relative">
+                              {/* Línea conectora horizontal solo visible en desktop largo */}
+                              <div className="hidden lg:block absolute top-1/2 -left-6 w-6 h-px bg-outline-variant/80 -translate-y-1/2"></div>
+                              {/* Línea vertical para móviles */}
+                              <div className="lg:hidden absolute -top-6 left-1/2 w-px h-6 bg-outline-variant/80 -translate-x-1/2"></div>
+                              {mismoNivel.map(f => (
+                                <div key={f.vinculoId} className="w-full max-w-[280px]">
+                                  <FamiliarTreeCard
+                                    persona={f}
+                                    onClick={() => setSelectedFamiliarModal(f)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+
+                        {/* Descendientes */}
+                        {descendientes.length > 0 && (
+                          <div className="flex flex-col items-center w-full">
+                            <div className="w-px h-8 bg-outline-variant/80 mb-4"></div>
+                            <div className="flex flex-wrap justify-center gap-4 w-full">
+                              {descendientes.map(f => (
+                                <div key={f.vinculoId} className="w-full max-w-[280px]">
+                                  <FamiliarTreeCard
+                                    persona={f}
+                                    onClick={() => setSelectedFamiliarModal(f)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        {/* Nodo Raíz: Titular */}
+                        <div className="relative z-10">
+                          <FamiliarCard
+                            persona={titular}
+                            onEdit={() => { setView('editar-propio'); }}
+                            onDelete={() => { /* No se puede eliminar titular */ }}
+                          />
+                        </div>
+
+                        {/* Ramas: Familiares */}
+                        {familiares.length > 0 && (
+                          <div className="relative mt-4 ml-6 md:ml-12 border-l-2 border-outline-variant/60 space-y-4 pb-4">
+                            {familiares.map((f) => (
+                              <div key={f.vinculoId} className="relative pl-8">
+                                {/* Línea conectora horizontal */}
+                                <div className="absolute top-1/2 left-0 w-8 h-[2px] bg-outline-variant/60 -translate-y-1/2"></div>
+                                <FamiliarCard
+                                  persona={f}
+                                  onEdit={() => { setFamiliarEditando(f); setView('editar-familiar'); }}
+                                  onDelete={() => setShowDeleteConfirm(f.vinculoId)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
                   ) : (
                     <p className="text-center text-on-surface-variant py-8 text-sm">No hay red familiar registrada.</p>
                   )}
@@ -456,6 +543,121 @@ export function PanelPage() {
             </motion.div>
           </div>
         )}
+        {/* Modal de Detalles del Familiar */}
+        <AnimatePresence>
+          {selectedFamiliarModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl relative"
+              >
+                {/* Botón Cerrar */}
+                <button 
+                  onClick={() => setSelectedFamiliarModal(null)}
+                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-outline-variant/60 text-on-surface-variant cursor-pointer border-none transition-colors"
+                >
+                  <span className="material-symbols-outlined text-lg">close</span>
+                </button>
+
+                <div className="flex flex-col items-center">
+                  <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-surface-container bg-surface shadow-md mb-4">
+                    {selectedFamiliarModal.fotoUrl ? (
+                      <img src={selectedFamiliarModal.fotoUrl} alt={selectedFamiliarModal.nombres} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-secondary/5">
+                        <span className="material-symbols-outlined text-on-surface-variant text-5xl">person</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <h3 className="font-headline-md text-2xl font-bold text-primary text-center mb-1">
+                    {selectedFamiliarModal.nombres} {selectedFamiliarModal.apellidos}
+                  </h3>
+                  
+                  <div className="flex gap-2 mb-6 mt-2">
+                    {selectedFamiliarModal.esTitular ? (
+                      <span className="text-xs uppercase tracking-wider bg-primary text-white px-3 py-1 rounded-full font-bold shadow-sm">Tú</span>
+                    ) : (
+                      <span className="text-xs uppercase tracking-wider bg-secondary/10 text-secondary px-3 py-1 rounded-full font-bold">
+                        {'relacion' in selectedFamiliarModal ? selectedFamiliarModal.relacion : 'Familiar'}
+                      </span>
+                    )}
+                    <span className="text-xs uppercase tracking-wider bg-surface-container text-on-surface-variant px-3 py-1 rounded-full font-bold">
+                      DNI: {selectedFamiliarModal.dni}
+                    </span>
+                  </div>
+                  
+                  <div className="w-full text-left bg-surface/50 border border-outline-variant/40 rounded-2xl p-5 mb-8 shadow-sm">
+                    <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">medical_services</span>
+                      Información Médica
+                    </h4>
+                    
+                    {selectedFamiliarModal.datosMedicos.enfermedadesCronicas.length === 0 && selectedFamiliarModal.datosMedicos.condicionesEspeciales.length === 0 ? (
+                      <p className="text-sm text-on-surface-variant italic m-0">No se registraron condiciones médicas.</p>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        {selectedFamiliarModal.datosMedicos.enfermedadesCronicas.length > 0 && (
+                          <div>
+                            <span className="text-[11px] uppercase tracking-wider text-on-surface-variant font-bold block mb-2">Enfermedades Crónicas</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedFamiliarModal.datosMedicos.enfermedadesCronicas.map(e => (
+                                <span key={e} className="text-xs font-medium bg-error-accent/10 text-error-accent px-2.5 py-1 rounded-md border border-error-accent/20">{e}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {selectedFamiliarModal.datosMedicos.condicionesEspeciales.length > 0 && (
+                          <div>
+                            <span className="text-[11px] uppercase tracking-wider text-on-surface-variant font-bold block mb-2">Condiciones Especiales</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedFamiliarModal.datosMedicos.condicionesEspeciales.map(c => (
+                                <span key={c} className="text-xs font-medium bg-secondary/10 text-secondary px-2.5 py-1 rounded-md border border-secondary/20">{c}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setSelectedFamiliarModal(null);
+                      if (selectedFamiliarModal.esTitular) {
+                        setView('editar-propio');
+                      } else {
+                        setFamiliarEditando(selectedFamiliarModal as FamiliarData);
+                        setView('editar-familiar');
+                      }
+                    }}
+                    className="flex-1 btn-primary justify-center flex items-center gap-2 py-3"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                    Editar Perfil
+                  </button>
+                  
+                  {!selectedFamiliarModal.esTitular && (
+                    <button
+                      onClick={() => {
+                        const id = (selectedFamiliarModal as FamiliarData).vinculoId;
+                        setSelectedFamiliarModal(null);
+                        setShowDeleteConfirm(id);
+                      }}
+                      className="flex-none px-5 bg-error-accent/10 text-error-accent hover:bg-error-accent hover:text-white rounded-xl font-semibold border-none cursor-pointer transition-colors flex items-center justify-center shadow-sm hover:shadow"
+                      title="Eliminar Familiar"
+                    >
+                      <span className="material-symbols-outlined text-[22px]">delete</span>
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
       </main>
     </div>
   );

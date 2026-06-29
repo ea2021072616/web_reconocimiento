@@ -81,21 +81,23 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-6 max-w-lg mx-auto"
     >
-      <div className="text-center relative">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="absolute left-0 top-0 p-2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-            title="Cambiar tipo de registro"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-        )}
-        <h2 className="font-headline-lg text-2xl font-bold text-primary mb-1">
-          {isEdit ? 'Editar mi perfil' : 'Mi Registro Personal'}
-        </h2>
-        <p className="text-on-surface-variant text-sm">
+      <div className="flex flex-col items-center relative mb-2">
+        <div className="w-full flex items-center justify-center relative mb-1">
+          {onBack && (
+            <button 
+              type="button" 
+              onClick={onBack}
+              className="absolute left-0 p-2 text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-full transition-colors flex items-center justify-center"
+              title="Volver atrás"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+          )}
+          <h2 className="font-headline-lg text-2xl font-bold text-primary">
+            {isEdit ? 'Editar mi perfil' : 'Mi Registro Personal'}
+          </h2>
+        </div>
+        <p className="text-on-surface-variant text-sm text-center px-8">
           {isEdit ? 'Actualiza tu información personal' : 'Empecemos contigo. Luego podrás registrar a tu familia.'}
         </p>
       </div>
