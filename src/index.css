@@ -19,8 +19,13 @@
 
   /* Brand Animation */
   @keyframes gradient-move {
-    0% { background-position: 0% center; }
-    100% { background-position: 200% center; }
+    0% {
+      background-position: 0% center;
+    }
+
+    100% {
+      background-position: 200% center;
+    }
   }
 
   .brand-text-animated {
@@ -43,9 +48,17 @@
 
     /* Badge Float */
     @keyframes float {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-      100% { transform: translateY(0px); }
+      0% {
+        transform: translateY(0px);
+      }
+
+      50% {
+        transform: translateY(-10px);
+      }
+
+      100% {
+        transform: translateY(0px);
+      }
     }
 
     .float-animation {
@@ -54,9 +67,17 @@
 
     /* CTA Pulse Shimmer */
     @keyframes pulse-shimmer {
-      0% { box-shadow: 0 0 0 0 rgba(201, 100, 66, 0.4); }
-      70% { box-shadow: 0 0 0 15px rgba(201, 100, 66, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(201, 100, 66, 0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(201, 100, 66, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 15px rgba(201, 100, 66, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(201, 100, 66, 0);
+      }
     }
 
     .cta-pulse {
@@ -98,15 +119,19 @@
 .btn-primary {
   @apply bg-success-accent text-on-primary font-body-sm font-semibold text-base py-3 px-6 rounded-lg border-none cursor-pointer inline-flex justify-center items-center gap-2 transition-all duration-200 hover:bg-[#047857] hover:-translate-y-px shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none;
 }
+
 .btn-secondary {
   @apply bg-white text-on-surface font-body-sm font-semibold text-base py-3 px-6 rounded-lg border border-outline-variant cursor-pointer inline-flex justify-center items-center gap-2 transition-all duration-200 hover:bg-background hover:border-slate-300;
 }
+
 .input-group {
   @apply flex flex-col gap-2 mb-6;
 }
+
 .input-label {
   @apply text-sm font-semibold text-on-surface;
 }
+
 .input-field {
   @apply bg-white border border-outline-variant rounded-lg py-3 px-4 text-on-surface text-base font-body-sm transition-all duration-200 outline-none shadow-sm focus:border-success-accent focus:ring-2 focus:ring-success-accent/20 placeholder:text-slate-400;
 }
@@ -115,38 +140,47 @@
 .qr-trigger-btn {
   @apply flex items-center justify-center gap-2 w-full p-4 bg-background border border-dashed border-slate-300 rounded-lg text-primary text-base font-medium cursor-pointer transition-all hover:bg-slate-100 hover:border-success-accent hover:text-success-accent;
 }
+
 .qr-container {
   @apply flex flex-col items-center gap-5 p-6 bg-background border border-outline-variant rounded-xl;
 }
+
 .qr-code-wrapper {
   @apply p-4 bg-white rounded-lg border border-outline-variant shadow-sm;
 }
+
 .qr-instructions-title {
   @apply text-base font-semibold text-primary mb-1;
 }
+
 .qr-instructions-text {
   @apply text-sm text-on-surface-variant leading-relaxed;
 }
+
 .qr-waiting {
   @apply text-secondary text-sm font-medium;
 }
+
 .qr-cancel-btn {
   @apply bg-white border border-outline-variant rounded-md text-on-surface-variant text-sm py-1.5 px-3 cursor-pointer hover:bg-slate-100;
 }
+
 .qr-received {
   @apply flex items-center gap-5 p-4 bg-[#ECFDF5] border border-[#A7F3D0] rounded-lg;
 }
+
 .foto-preview {
   @apply w-[60px] h-[60px] rounded-full overflow-hidden border-2 border-success-accent;
 }
+
 .foto-preview img {
   @apply w-full h-full object-cover;
 }
+
 .foto-received-badge {
   @apply text-success-accent font-semibold;
 }
+
 .qr-retry-btn {
   @apply bg-transparent border-none text-on-surface-variant text-sm underline cursor-pointer p-0 hover:text-primary;
 }
-
-
