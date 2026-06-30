@@ -16,7 +16,8 @@ interface RegistroFamiliarProps {
 
 const OPCIONES_PARENTESCO = [
   'Hijo/a',
-  'Padre/Madre',
+  'Padre',
+  'Madre',
   'Pareja',
   'Hermano/a',
   'Abuelo/a',

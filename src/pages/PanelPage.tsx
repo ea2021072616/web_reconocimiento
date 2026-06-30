@@ -149,7 +149,7 @@ export function PanelPage() {
 
   if (!usuario) return null;
 
-  const ancestros = familiares.filter(f => ['Padre/Madre', 'Abuelo/a', 'Tío/a', 'Suegro/a'].includes(f.relacion));
+  const ancestros = familiares.filter(f => ['Padre', 'Madre', 'Padre/Madre', 'Abuelo/a', 'Tío/a', 'Suegro/a'].includes(f.relacion));
   const mismoNivel = familiares.filter(f => ['Pareja', 'Hermano/a', 'Primo/a', 'Cuñado/a', 'Otro'].includes(f.relacion));
   const descendientes = familiares.filter(f => ['Hijo/a', 'Nieto/a', 'Sobrino/a'].includes(f.relacion));
 
