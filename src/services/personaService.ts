@@ -43,6 +43,22 @@ export const verificarPersonaExiste = async (dni: string): Promise<boolean> => {
   return docSnap.exists();
 };
 
+// Helper para obtener el parentesco inverso usando SOLO las opciones permitidas
+export const obtenerInversoParentesco = (relacion: string): string => {
+  switch (relacion) {
+    case 'Hijo/a': return 'Padre/Madre';
+    case 'Padre/Madre': return 'Hijo/a';
+    case 'Pareja': return 'Pareja';
+    case 'Hermano/a': return 'Hermano/a';
+    case 'Abuelo/a': return 'Nieto/a';
+    case 'Nieto/a': return 'Abuelo/a';
+    case 'Tío/a': return 'Sobrino/a';
+    case 'Sobrino/a': return 'Tío/a';
+    case 'Primo/a': return 'Primo/a';
+    default: return 'Otro';
+  }
+};
+
 /**
  * Registra una persona (titular o familiar).
  */
@@ -97,21 +113,48 @@ export const registrarPersona = async (
  */
 export const crearVinculoFamiliar = async (titularDni: string, familiarDni: string, relacion: string): Promise<void> => {
   if (!db) throw new Error('Base de datos no inicializada.');
-  const id = `${titularDni}_${familiarDni}`;
-  const docRef = doc(db, 'vinculos_familiares', id);
-  const docSnap = await getDoc(docRef);
   
-  if (docSnap.exists()) {
-    await setDoc(docRef, {
-      relacion,
+  const relacionInversa = obtenerInversoParentesco(relacion);
+
+  // 1. Crear/Actualizar Vínculo Directo (titular -> familiar)
+  // Regla del cliente: titularDni_familiarDni significa "titular es [relacionInversa] de familiar"
+  const idDirecto = `${titularDni}_${familiarDni}`;
+  const docRefDirecto = doc(db, 'vinculos_familiares', idDirecto);
+  const docSnapDirecto = await getDoc(docRefDirecto);
+  
+  if (docSnapDirecto.exists()) {
+    await setDoc(docRefDirecto, {
+      relacion: relacionInversa,
       actualizadoEn: serverTimestamp(),
     }, { merge: true });
   } else {
-    await setDoc(docRef, {
-      id,
+    await setDoc(docRefDirecto, {
+      id: idDirecto,
       titularDni,
       familiarDni,
-      relacion,
+      relacion: relacionInversa,
+      creadoEn: serverTimestamp(),
+      actualizadoEn: serverTimestamp(),
+    });
+  }
+
+  // 2. Crear/Actualizar Vínculo Inverso (familiar -> titular)
+  // Regla del cliente: familiarDni_titularDni significa "familiar es [relacion] de titular"
+  const idInverso = `${familiarDni}_${titularDni}`;
+  const docRefInverso = doc(db, 'vinculos_familiares', idInverso);
+  const docSnapInverso = await getDoc(docRefInverso);
+
+  if (docSnapInverso.exists()) {
+    await setDoc(docRefInverso, {
+      relacion: relacion,
+      actualizadoEn: serverTimestamp(),
+    }, { merge: true });
+  } else {
+    await setDoc(docRefInverso, {
+      id: idInverso,
+      titularDni: familiarDni,   // El familiar ahora es el titular de este documento
+      familiarDni: titularDni,   // El titular original es el familiar en este documento
+      relacion: relacion,
       creadoEn: serverTimestamp(),
       actualizadoEn: serverTimestamp(),
     });
@@ -160,7 +203,9 @@ export const obtenerFamiliares = async (cuentaTitularDni: string): Promise<Famil
     if (persona) {
       familiares.push({
         ...persona,
-        relacion: vinculo.relacion,
+        // Como la DB guarda lo que Titular es de Familiar,
+        // invertimos el parentesco para mostrar en la UI lo que Familiar es de Titular.
+        relacion: obtenerInversoParentesco(vinculo.relacion),
         vinculoId: vinculo.id,
       });
     }
