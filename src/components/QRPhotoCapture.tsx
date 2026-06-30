@@ -78,8 +78,8 @@ export const QRPhotoCapture = ({ apiUrl, onFotoCaptured }: QRPhotoCaptureProps) 
       console.error('[QR] Error de WebSocket:', error);
     };
 
-    ws.onclose = () => {
-      console.log('[QR] WebSocket cerrado');
+    ws.onclose = (event) => {
+      console.log(`[QR] WebSocket cerrado. Código: ${event.code}, Razón: ${event.reason || 'Ninguna'}`);
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
         pingIntervalRef.current = null;
