@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { LoginForm } from '../components/auth/LoginForm';
 import { RegisterForm } from '../components/auth/RegisterForm';
 import { RecoverPasswordForm } from '../components/auth/RecoverPasswordForm';
+import { CustomLogo } from '../components/CustomLogo';
 
 type AuthView = 'login' | 'register' | 'recover';
 
@@ -25,12 +26,12 @@ export function AuthPage() {
       {/* Top bar */}
       <header className="w-full border-b border-outline-variant bg-white/90 backdrop-blur-md">
         <div className="flex justify-between items-center px-6 md:px-12 max-w-[1280px] mx-auto h-16">
-          <button
-            onClick={() => navigate('/')}
-            className="text-xl font-bold font-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-secondary via-primary to-secondary brand-text-animated cursor-pointer bg-transparent border-none"
-          >
-            #YoCuidoMiFamilia
-          </button>
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
+            <CustomLogo className="w-10 h-10 shrink-0 drop-shadow-sm" />
+            <span className="font-bold text-lg font-headline-lg text-primary tracking-tight">
+              #YoCuido<span className="text-secondary">MiFamilia</span>
+            </span>
+          </div>
           <button
             onClick={() => navigate('/')}
             className="text-sm text-on-surface-variant hover:text-primary cursor-pointer bg-transparent border-none flex items-center gap-1"
