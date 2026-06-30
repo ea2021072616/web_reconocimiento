@@ -9,6 +9,7 @@ import { RegistroFamiliar } from '../components/panel/RegistroFamiliar';
 import { FamiliarCard } from '../components/panel/FamiliarCard';
 import { FamiliarTreeCard } from '../components/panel/FamiliarTreeCard';
 import { Loader2 } from 'lucide-react';
+import { CustomLogo } from '../components/CustomLogo';
 
 type PanelView =
   | 'loading'
@@ -172,9 +173,12 @@ export function PanelPage() {
       {/* Top Nav */}
       <header className="sticky top-0 z-50 w-full border-b border-outline-variant bg-white/90 backdrop-blur-md">
         <div className="flex justify-between items-center px-6 md:px-12 max-w-[1280px] mx-auto h-16">
-          <span className="text-lg font-bold font-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-secondary via-primary to-secondary brand-text-animated">
-            #YoCuidoMiFamilia
-          </span>
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
+            <CustomLogo className="w-10 h-10 shrink-0 drop-shadow-sm" />
+            <span className="font-bold text-lg font-headline-lg text-primary tracking-tight">
+              #YoCuido<span className="text-secondary">MiFamilia</span>
+            </span>
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-on-surface-variant hidden sm:block">
               DNI: <span className="font-semibold text-on-surface">{usuario.dni}</span>
