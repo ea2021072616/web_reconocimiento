@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { QRPhotoCapture } from '../QRPhotoCapture';
 import { ChipSelector, ENFERMEDADES_CRONICAS, CONDICIONES_ESPECIALES } from '../ChipSelector';
-import { registrarPersona, actualizarPersona, type PersonaData } from '../../services/personaService';
+import { registrarPersona, actualizarPersona, asegurarSincronizacionCompleta, type PersonaData } from '../../services/personaService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -57,12 +57,11 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
     setError('');
     setSincronizando(true);
     try {
-      const apiKey = import.meta.env.VITE_RENIEC_API_KEY || import.meta.env.RENIEC_API_KEY || 'd43b2d7d63af0ae44998244ecbfe8f66db8f3cceca6c9b535bd571fb48e1';
-      const response = await fetch('https://api.json.pe/api/dni', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/proxy/dni`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({ dni: dniTitular }),
       });
@@ -142,6 +141,9 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
           setLoading(false);
           return;
         }
+
+        // Ejecutar sincronización de RENIEC y Qdrant
+        await asegurarSincronizacionCompleta(dniTitular, fotoBase64);
       }
       onComplete();
     } catch {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { actualizarCuenta } from '../services/authService';
-import { obtenerPersona, obtenerFamiliares, eliminarVinculoFamiliar, type PersonaData, type FamiliarData } from '../services/personaService';
+import { obtenerPersona, obtenerFamiliares, eliminarVinculoFamiliar, asegurarSincronizacionCompleta, type PersonaData, type FamiliarData } from '../services/personaService';
 import { obtenerContactos, eliminarContacto, type ContactoEmergencia } from '../services/contactoService';
 import { RegistroPropio } from '../components/panel/RegistroPropio';
 import { RegistroFamiliar } from '../components/panel/RegistroFamiliar';
@@ -11,6 +11,7 @@ import { ContactoEmergenciaForm } from '../components/panel/ContactoEmergencia';
 import { FamiliarCard } from '../components/panel/FamiliarCard';
 import { FamiliarTreeCard } from '../components/panel/FamiliarTreeCard';
 import { ContactoCard } from '../components/panel/ContactoCard';
+import { Loader2 } from 'lucide-react';
 
 type PanelView =
   | 'loading'
@@ -21,6 +22,7 @@ type PanelView =
   | 'editar-familiar'
   | 'contacto-emergencia'
   | 'editar-contacto'
+  | 'sincronizar-biometria'
   | 'dashboard'
   | 'dashboard-add-more';
 
@@ -37,6 +39,8 @@ export function PanelPage() {
   const [showDeleteContacto, setShowDeleteContacto] = useState<string | null>(null);
   const [isTreeView, setIsTreeView] = useState(false);
   const [selectedFamiliarModal, setSelectedFamiliarModal] = useState<FamiliarData | PersonaData | null>(null);
+  const [syncingDnis, setSyncingDnis] = useState<string[]>([]);
+  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({});
 
   // Redirect si no está logueado
   useEffect(() => {
@@ -67,8 +71,13 @@ export function PanelPage() {
         setView('elegir-tipo');
       }
     } else if (!usuario.registroCompletado && contactosData.length === 0) {
-      // Tiene registro propio pero no ha completado contactos
-      if (usuario.tipoRegistro === 'familia' && familiaresData.length === 0) {
+      // Verificar si hay rostros sin sincronizar
+      const tienePendientes = (titularData && !titularData.rostro_sincronizado) || 
+        (usuario.tipoRegistro === 'familia' && familiaresData.some(f => !f.rostro_sincronizado));
+
+      if (tienePendientes) {
+        setView('sincronizar-biometria');
+      } else if (usuario.tipoRegistro === 'familia' && familiaresData.length === 0) {
         setView('agregar-familiar');
       } else {
         setView('contacto-emergencia');
@@ -91,14 +100,19 @@ export function PanelPage() {
 
   const handleRegistroPropioComplete = async () => {
     if (!usuario) return;
-    if (usuario.tipoRegistro === 'familia') {
-      setView('agregar-familiar');
-    } else {
-      setView('contacto-emergencia');
-    }
     // Refrescar datos
     const titularData = await obtenerPersona(usuario.dni);
     setTitular(titularData);
+
+    if (usuario.tipoRegistro === 'familia') {
+      setView('agregar-familiar');
+    } else {
+      if (titularData && !titularData.rostro_sincronizado) {
+        setView('sincronizar-biometria');
+      } else {
+        setView('contacto-emergencia');
+      }
+    }
   };
 
   const handleFamiliarComplete = async () => {
@@ -111,6 +125,27 @@ export function PanelPage() {
       setView('dashboard-add-more');
     } else {
       setView('dashboard');
+    }
+  };
+
+  const handleContinuarDespuesDeFamilia = async () => {
+    if (!usuario) return;
+    
+    // Recargar datos
+    const [titularData, familiaresData] = await Promise.all([
+      obtenerPersona(usuario.dni),
+      obtenerFamiliares(usuario.dni),
+    ]);
+    setTitular(titularData);
+    setFamiliares(familiaresData);
+
+    const tienePendientes = (titularData && !titularData.rostro_sincronizado) || 
+      familiaresData.some(f => !f.rostro_sincronizado);
+
+    if (tienePendientes) {
+      setView('sincronizar-biometria');
+    } else {
+      setView('contacto-emergencia');
     }
   };
 
@@ -294,12 +329,197 @@ export function PanelPage() {
                   Agregar otro familiar
                 </button>
                 <button
-                  onClick={() => setView('contacto-emergencia')}
+                  onClick={handleContinuarDespuesDeFamilia}
                   className="btn-primary justify-center"
                 >
                   Continuar
                   <span className="material-symbols-outlined text-lg">arrow_forward</span>
                 </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Sincronización Biométrica */}
+          {view === 'sincronizar-biometria' && (
+            <motion.div
+              key="sincronizar-biometria"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-xl mx-auto py-8"
+            >
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 rounded-full bg-error-accent/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="material-symbols-outlined text-error-accent text-3xl">sync_problem</span>
+                </div>
+                <h2 className="font-headline-lg text-2xl font-bold text-primary mb-2">
+                  Sincronización Biométrica Pendiente
+                </h2>
+                <p className="text-on-surface-variant text-sm">
+                  Por seguridad, todos los rostros registrados deben estar sincronizados en el motor de búsqueda facial para estar protegidos. Sincroniza los pendientes para continuar.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-4 bg-white border border-outline-variant/55 rounded-3xl p-6 shadow-sm mb-8">
+                <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">
+                  Personas pendientes
+                </h3>
+                
+                <div className="flex flex-col gap-3">
+                  {/* Titular si está pendiente */}
+                  {titular && !titular.rostro_sincronizado && (
+                    <div className="flex items-center justify-between p-4 bg-surface-container/30 border border-outline-variant/30 rounded-2xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-outline-variant bg-surface flex-shrink-0">
+                          {titular.fotoUrl ? (
+                            <img src={titular.fotoUrl} alt={titular.nombres} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-secondary/5">
+                              <span className="material-symbols-outlined text-on-surface-variant text-xl">person</span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-primary leading-tight">
+                            {titular.nombres} {titular.apellidos}
+                          </p>
+                          <p className="text-xs text-on-surface-variant">DNI: {titular.dni} • <span className="font-semibold text-secondary">Tú</span></p>
+                          {syncErrors[titular.dni] && (
+                            <p className="text-[11px] text-error-accent font-semibold mt-1 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs">warning</span>
+                              {syncErrors[titular.dni]}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setSyncingDnis(prev => [...prev, titular.dni]);
+                          setSyncErrors(prev => {
+                            const copy = { ...prev };
+                            delete copy[titular.dni];
+                            return copy;
+                          });
+                          const result = await asegurarSincronizacionCompleta(titular.dni, titular.fotoUrl);
+                          setSyncingDnis(prev => prev.filter(d => d !== titular.dni));
+                          if (result.success) {
+                            // Refrescar titular
+                            const t = await obtenerPersona(titular.dni);
+                            setTitular(t);
+                          } else {
+                            setSyncErrors(prev => ({ ...prev, [titular.dni]: result.error || 'Fallo de conexión.' }));
+                          }
+                        }}
+                        disabled={syncingDnis.includes(titular.dni)}
+                        className={`text-xs font-bold py-2.5 px-4 rounded-full transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                          syncingDnis.includes(titular.dni)
+                            ? 'bg-outline-variant/30 text-on-surface-variant/50 cursor-not-allowed border-none shadow-none'
+                            : 'bg-primary text-white hover:bg-primary/95 border-none hover:-translate-y-0.5 active:translate-y-0'
+                        }`}
+                      >
+                        {syncingDnis.includes(titular.dni) ? (
+                          <><Loader2 size={12} className="animate-spin" /> Sincronizando</>
+                        ) : (
+                          <><span className="material-symbols-outlined text-sm">sync</span> Sincronizar</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Familiares si están pendientes */}
+                  {familiares.filter(f => !f.rostro_sincronizado).map(f => (
+                    <div key={f.dni} className="flex items-center justify-between p-4 bg-surface-container/30 border border-outline-variant/30 rounded-2xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-outline-variant bg-surface flex-shrink-0">
+                          {f.fotoUrl ? (
+                            <img src={f.fotoUrl} alt={f.nombres} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-secondary/5">
+                              <span className="material-symbols-outlined text-on-surface-variant text-xl">person</span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-primary leading-tight">
+                            {f.nombres} {f.apellidos}
+                          </p>
+                          <p className="text-xs text-on-surface-variant">DNI: {f.dni} • <span className="font-medium text-secondary">{f.relacion}</span></p>
+                          {syncErrors[f.dni] && (
+                            <p className="text-[11px] text-error-accent font-semibold mt-1 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs">warning</span>
+                              {syncErrors[f.dni]}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setSyncingDnis(prev => [...prev, f.dni]);
+                          setSyncErrors(prev => {
+                            const copy = { ...prev };
+                            delete copy[f.dni];
+                            return copy;
+                          });
+                          const result = await asegurarSincronizacionCompleta(f.dni, f.fotoUrl);
+                          setSyncingDnis(prev => prev.filter(d => d !== f.dni));
+                          if (result.success) {
+                            // Refrescar familiares
+                            const fams = await obtenerFamiliares(usuario.dni);
+                            setFamiliares(fams);
+                          } else {
+                            setSyncErrors(prev => ({ ...prev, [f.dni]: result.error || 'Fallo de conexión.' }));
+                          }
+                        }}
+                        disabled={syncingDnis.includes(f.dni)}
+                        className={`text-xs font-bold py-2.5 px-4 rounded-full transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                          syncingDnis.includes(f.dni)
+                            ? 'bg-outline-variant/30 text-on-surface-variant/50 cursor-not-allowed border-none shadow-none'
+                            : 'bg-primary text-white hover:bg-primary/95 border-none hover:-translate-y-0.5 active:translate-y-0'
+                        }`}
+                      >
+                        {syncingDnis.includes(f.dni) ? (
+                          <><Loader2 size={12} className="animate-spin" /> Sincronizando</>
+                        ) : (
+                          <><span className="material-symbols-outlined text-sm">sync</span> Sincronizar</>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <button
+                  onClick={async () => {
+                    // Volver a verificar antes de avanzar
+                    const [t, fams] = await Promise.all([
+                      obtenerPersona(usuario.dni),
+                      obtenerFamiliares(usuario.dni),
+                    ]);
+                    setTitular(t);
+                    setFamiliares(fams);
+
+                    const tienePendientes = (t && !t.rostro_sincronizado) || 
+                      fams.some(f => !f.rostro_sincronizado);
+
+                    if (!tienePendientes) {
+                      setView('contacto-emergencia');
+                    } else {
+                      alert('Aún tienes registros pendientes de sincronización biométrica.');
+                    }
+                  }}
+                  disabled={
+                    (titular && !titular.rostro_sincronizado) || 
+                    familiares.some(f => !f.rostro_sincronizado)
+                  }
+                  className="btn-primary w-full justify-center py-3.5"
+                >
+                  Continuar a Contacto de Emergencia
+                  <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                </button>
+                <p className="text-center text-xs text-on-surface-variant">
+                  El botón se activará una vez que todas las identidades tengan su rostro sincronizado.
+                </p>
               </div>
             </motion.div>
           )}

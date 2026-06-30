@@ -18,6 +18,7 @@ export interface PersonaData {
   cuentaTitular?: string; // Legacy
   esTitular: boolean;
   estado: 'titular' | 'registrado_por_familiar';
+  rostro_sincronizado?: boolean;
 }
 
 export interface VinculoFamiliar {
@@ -101,6 +102,7 @@ export const registrarPersona = async (
     cuentaTitular: data.cuentaTitular,
     esTitular: data.esTitular,
     estado: data.esTitular ? 'titular' : 'registrado_por_familiar',
+    rostro_sincronizado: false,
     creadoEn: serverTimestamp(),
     actualizadoEn: serverTimestamp(),
   });
@@ -283,4 +285,99 @@ export const eliminarPersona = async (dni: string): Promise<void> => {
 export const eliminarVinculoFamiliar = async (vinculoId: string): Promise<void> => {
   if (!db) throw new Error('Base de datos no inicializada.');
   await deleteDoc(doc(db, 'vinculos_familiares', vinculoId));
+};
+
+/**
+ * Asegura que los datos de la persona existan en 'datos_reniec' y
+ * que su rostro esté indexado en Qdrant.
+ * Actualiza el campo 'rostro_sincronizado' en la colección 'personas'.
+ */
+export const asegurarSincronizacionCompleta = async (
+  dni: string,
+  fotoBase64Capturada?: string
+): Promise<{ success: boolean; error?: string }> => {
+  if (!db) throw new Error('Base de datos no inicializada.');
+
+  try {
+    // 1. Verificar si existe en 'datos_reniec'
+    const reniecRef = doc(db, 'datos_reniec', dni);
+    const reniecSnap = await getDoc(reniecRef);
+    let datosReniec: any = null;
+
+    if (reniecSnap.exists()) {
+      datosReniec = reniecSnap.data();
+    } else {
+      // Consultar API Avanzada mediante proxy seguro del backend
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/proxy/biometria`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dni }),
+      });
+
+      if (response.ok) {
+        const resJson = await response.json();
+        if (resJson.message === 'found data' && resJson.result) {
+          datosReniec = resJson.result;
+          // Guardar en firestore
+          await setDoc(reniecRef, datosReniec);
+        }
+      }
+    }
+
+    // 2. Intentar indexar en Qdrant
+    // Buscamos la foto base64 de la RENIEC, o usamos la foto capturada como fallback
+    let fotoB64 = datosReniec?.imagenes?.foto || fotoBase64Capturada;
+
+    if (!fotoB64) {
+      await setDoc(doc(db, 'personas', dni), {
+        rostro_sincronizado: false,
+      }, { merge: true });
+      return { success: false, error: 'No se encontró una foto de rostro para indexar.' };
+    }
+
+    // Limpiar prefijo data:image/jpeg;base64, si lo tiene
+    if (fotoB64.includes(',')) {
+      fotoB64 = fotoB64.split(',')[1];
+    }
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const qdrantResponse = await fetch(`${apiUrl}/indexar_base64`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+      },
+      body: JSON.stringify({
+        dni,
+        foto_b64: fotoB64,
+      }),
+    });
+
+    if (qdrantResponse.ok) {
+      const qdrantJson = await qdrantResponse.json();
+      if (qdrantJson.estado === 'exito') {
+        // Éxito: actualizar personas con rostro_sincronizado: true
+        await setDoc(doc(db, 'personas', dni), {
+          rostro_sincronizado: true,
+        }, { merge: true });
+        return { success: true };
+      }
+    }
+
+    // Si falló la llamada a Qdrant
+    await setDoc(doc(db, 'personas', dni), {
+      rostro_sincronizado: false,
+    }, { merge: true });
+    return { success: false, error: 'La API de indexación facial no respondió con éxito.' };
+
+  } catch (err: any) {
+    console.error('Error en asegurarSincronizacionCompleta:', err);
+    await setDoc(doc(db, 'personas', dni), {
+      rostro_sincronizado: false,
+    }, { merge: true });
+    return { success: false, error: err.message || 'Error de conexión con los servicios de indexación.' };
+  }
 };

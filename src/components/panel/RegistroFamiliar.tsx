@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { QRPhotoCapture } from '../QRPhotoCapture';
 import { ChipSelector, ENFERMEDADES_CRONICAS, CONDICIONES_ESPECIALES } from '../ChipSelector';
-import { registrarPersona, actualizarPersona, verificarPersonaExiste, crearVinculoFamiliar, obtenerPersona, verificarVinculoExiste, type FamiliarData, type PersonaData } from '../../services/personaService';
+import { registrarPersona, actualizarPersona, verificarPersonaExiste, crearVinculoFamiliar, obtenerPersona, verificarVinculoExiste, asegurarSincronizacionCompleta, type FamiliarData, type PersonaData } from '../../services/personaService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -84,6 +84,51 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
     return () => clearTimeout(timeoutId);
   }, [dni, dniValido, isEdit]);
 
+  const [consultandoReniec, setConsultandoReniec] = useState(false);
+
+  // Limpiar nombres y apellidos cuando cambia el DNI en modo creación
+  useEffect(() => {
+    if (!isEdit) {
+      setNombres('');
+      setApellidos('');
+    }
+  }, [dni, isEdit]);
+
+  const handleConsultarReniec = async () => {
+    setConsultandoReniec(true);
+    setError('');
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/proxy/dni`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ dni })
+      });
+
+      if (!response.ok) {
+        throw new Error('No se pudo establecer conexión con la API de RENIEC.');
+      }
+
+      const resData = await response.json();
+      if (resData.success && resData.data) {
+        const apiNombres = resData.data.nombres;
+        const apiApellidos = `${resData.data.apellido_paterno} ${resData.data.apellido_materno}`.trim();
+        
+        setNombres(apiNombres);
+        setApellidos(apiApellidos);
+      } else {
+        throw new Error(resData.message || 'La consulta no devolvió datos válidos.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'No se pudo sincronizar los datos de RENIEC.');
+    } finally {
+      setConsultandoReniec(false);
+    }
+  };
+
   // Si existe el DNI, solo necesitamos la relacion. Si no existe, necesitamos todo.
   const photoValid = (isEdit && !wantsNewPhoto) ? true : (fotoBase64.length > 100);
   const formValido = dniValido && !vinculoExistente && dni !== cuentaTitularDni && relacion.trim() !== '' && (
@@ -140,6 +185,9 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
           }
           // Luego creamos el vínculo
           await crearVinculoFamiliar(cuentaTitularDni, dni, relacion);
+
+          // Ejecutar sincronización de RENIEC y Qdrant
+          await asegurarSincronizacionCompleta(dni, fotoBase64);
         }
       }
       onComplete();
@@ -176,34 +224,79 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-on-surface">N° DNI del familiar</label>
-        <input
-          type="text"
-          value={dni}
-          onChange={(e) => setDni(e.target.value.replace(/\D/g, '').slice(0, 8))}
-          placeholder="8 dígitos"
-          maxLength={8}
-          className="input-field"
-          disabled={isEdit}
-          required
-        />
-        {dni.length > 0 && !dniValido && (
-          <p className="text-xs text-on-surface-variant">El DNI debe tener 8 dígitos</p>
-        )}
-        {dni === cuentaTitularDni && (
-          <p className="text-xs text-error-accent font-semibold mt-1">No puedes registrarte a ti mismo como familiar</p>
-        )}
-        {vinculoExistente && (
-          <p className="text-xs text-error-accent font-semibold mt-1">Esta persona ya es parte de tu red familiar</p>
-        )}
-        {checkingDni && (
-          <p className="text-xs text-secondary flex items-center gap-1">
-            <Loader2 size={12} className="animate-spin" /> Verificando DNI...
-          </p>
+      <div className="flex flex-col sm:flex-row gap-3 items-end">
+        <div className="flex-1 flex flex-col gap-2 w-full">
+          <label className="text-sm font-semibold text-on-surface">N° DNI del familiar</label>
+          <input
+            type="text"
+            value={dni}
+            onChange={(e) => setDni(e.target.value.replace(/\D/g, '').slice(0, 8))}
+            placeholder="8 dígitos"
+            maxLength={8}
+            className="input-field"
+            disabled={isEdit}
+            required
+          />
+        </div>
+        {dniValido && !dniExiste && !checkingDni && !vinculoExistente && dni !== cuentaTitularDni && (
+          <button
+            type="button"
+            onClick={handleConsultarReniec}
+            disabled={consultandoReniec}
+            className="btn-secondary h-[48px] px-4 justify-center gap-1.5 border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 w-full sm:w-auto"
+          >
+            {consultandoReniec ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined text-[20px]">search</span>
+            )}
+            <span>Consultar</span>
+          </button>
         )}
       </div>
 
+      {dni.length > 0 && !dniValido && (
+        <p className="text-xs text-on-surface-variant -mt-3">El DNI debe tener 8 dígitos</p>
+      )}
+      {dni === cuentaTitularDni && (
+        <p className="text-xs text-error-accent font-semibold -mt-3">No puedes registrarte a ti mismo como familiar</p>
+      )}
+      {vinculoExistente && (
+        <p className="text-xs text-error-accent font-semibold -mt-3">Esta persona ya es parte de tu red familiar</p>
+      )}
+      {checkingDni && (
+        <p className="text-xs text-secondary flex items-center gap-1 -mt-3">
+          <Loader2 size={12} className="animate-spin" /> Verificando DNI...
+        </p>
+      )}
+
+      {/* Nombres */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-on-surface">Nombres</label>
+        <input
+          type="text"
+          value={nombres}
+          readOnly
+          placeholder="Consulta el DNI para autocompletar..."
+          className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
+          required
+        />
+      </div>
+
+      {/* Apellidos */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-on-surface">Apellidos</label>
+        <input
+          type="text"
+          value={apellidos}
+          readOnly
+          placeholder="Consulta el DNI para autocompletar..."
+          className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
+          required
+        />
+      </div>
+
+      {/* Parentesco */}
       <AnimatePresence mode="popLayout">
         {!vinculoExistente && dni !== cuentaTitularDni && (
           <motion.div
@@ -230,6 +323,7 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
         )}
       </AnimatePresence>
 
+      {/* Familiar encontrado Banner */}
       <AnimatePresence mode="popLayout">
         {dniValido && dniExiste && !vinculoExistente && dni !== cuentaTitularDni && (
           <motion.div
@@ -240,59 +334,26 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
           >
             <span className="material-symbols-outlined text-primary mt-0.5">verified_user</span>
             <div className="w-full">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <p className="font-semibold text-primary text-sm">
-                  Familiar: {personaExistenteInfo?.nombres?.split(' ')[0]} {personaExistenteInfo?.apellidos?.split(' ')[0]}
-                </p>
-                <div className="group relative">
-                  <span className="material-symbols-outlined text-primary/60 hover:text-primary text-[18px] cursor-help transition-colors">info</span>
-                  <div className="absolute right-0 bottom-full mb-2 w-56 p-3 bg-white text-on-surface text-xs rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none z-10 border border-outline-variant">
-                    Esta persona ya está en el sistema. No es necesario volver a tomarle fotos ni llenar sus datos. Solo selecciona qué es de ti y guarda.
-                  </div>
-                </div>
-              </div>
+              <p className="font-semibold text-primary text-sm mb-1">
+                ¡Familiar encontrado en el sistema!
+              </p>
               <p className="text-xs text-on-surface-variant font-medium">
-                ¡Familiar encontrado! Solo indica el parentesco abajo.
+                No es necesario volver a tomarle fotos ni llenar sus datos médicos. Solo guarda para agregarlo a tu red familiar.
               </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Resto del Registro (Foto, Datos médicos, Consentimiento) */}
       <AnimatePresence mode="popLayout">
-        {(!dniValido || !dniExiste) && (
+        {dniValido && !dniExiste && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="flex flex-col gap-6"
           >
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-on-surface">Nombres</label>
-                <input
-                  type="text"
-                  value={nombres}
-                  onChange={(e) => setNombres(e.target.value)}
-                  placeholder="Ej. María Elena"
-                  className="input-field"
-                  required
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-on-surface">Apellidos</label>
-                <input
-                  type="text"
-                  value={apellidos}
-                  onChange={(e) => setApellidos(e.target.value)}
-                  placeholder="Ej. Pérez Rodríguez"
-                  className="input-field"
-                  required
-                />
-              </div>
-            </div>
-
             <div className="flex flex-col gap-2">
               <label className="text-sm font-semibold text-on-surface flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">qr_code_scanner</span>

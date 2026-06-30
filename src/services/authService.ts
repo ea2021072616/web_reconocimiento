@@ -50,12 +50,11 @@ export const crearCuenta = async (data: {
   let apellidos: string | null = null;
 
   try {
-    const apiKey = import.meta.env.VITE_RENIEC_API_KEY || import.meta.env.RENIEC_API_KEY || 'd43b2d7d63af0ae44998244ecbfe8f66db8f3cceca6c9b535bd571fb48e1';
-    const response = await fetch('https://api.json.pe/api/dni', {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+    const response = await fetch(`${apiUrl}/proxy/dni`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ dni: data.dni }),
     });
