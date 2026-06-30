@@ -4,13 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { actualizarCuenta } from '../services/authService';
 import { obtenerPersona, obtenerFamiliares, eliminarVinculoFamiliar, asegurarSincronizacionCompleta, type PersonaData, type FamiliarData } from '../services/personaService';
-import { obtenerContactos, eliminarContacto, type ContactoEmergencia } from '../services/contactoService';
 import { RegistroPropio } from '../components/panel/RegistroPropio';
 import { RegistroFamiliar } from '../components/panel/RegistroFamiliar';
-import { ContactoEmergenciaForm } from '../components/panel/ContactoEmergencia';
 import { FamiliarCard } from '../components/panel/FamiliarCard';
 import { FamiliarTreeCard } from '../components/panel/FamiliarTreeCard';
-import { ContactoCard } from '../components/panel/ContactoCard';
 import { Loader2 } from 'lucide-react';
 
 type PanelView =
@@ -32,11 +29,8 @@ export function PanelPage() {
   const [view, setView] = useState<PanelView>('loading');
   const [titular, setTitular] = useState<PersonaData | null>(null);
   const [familiares, setFamiliares] = useState<FamiliarData[]>([]);
-  const [contactos, setContactos] = useState<ContactoEmergencia[]>([]);
   const [familiarEditando, setFamiliarEditando] = useState<FamiliarData | null>(null);
-  const [contactoEditando, setContactoEditando] = useState<ContactoEmergencia | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [showDeleteContacto, setShowDeleteContacto] = useState<string | null>(null);
   const [isTreeView, setIsTreeView] = useState(false);
   const [selectedFamiliarModal, setSelectedFamiliarModal] = useState<FamiliarData | PersonaData | null>(null);
   const [syncingDnis, setSyncingDnis] = useState<string[]>([]);
@@ -49,19 +43,24 @@ export function PanelPage() {
     }
   }, [isLoggedIn, navigate]);
 
+  const completarRegistroYRedireccionar = useCallback(async () => {
+    if (!usuario) return;
+    await actualizarCuenta(usuario.dni, { registroCompletado: true });
+    actualizarUsuario({ registroCompletado: true });
+    setView('dashboard');
+  }, [usuario, actualizarUsuario]);
+
   const cargarDatos = useCallback(async () => {
     if (!usuario) return;
     setView('loading');
 
-    const [titularData, familiaresData, contactosData] = await Promise.all([
+    const [titularData, familiaresData] = await Promise.all([
       obtenerPersona(usuario.dni),
       obtenerFamiliares(usuario.dni),
-      obtenerContactos(usuario.dni),
     ]);
 
     setTitular(titularData);
     setFamiliares(familiaresData);
-    setContactos(contactosData);
 
     if (!titularData) {
       // Primera vez: no tiene registro propio
@@ -70,7 +69,7 @@ export function PanelPage() {
       } else {
         setView('elegir-tipo');
       }
-    } else if (!usuario.registroCompletado && contactosData.length === 0) {
+    } else if (!usuario.registroCompletado) {
       // Verificar si hay rostros sin sincronizar
       const tienePendientes = (titularData && !titularData.rostro_sincronizado) || 
         (usuario.tipoRegistro === 'familia' && familiaresData.some(f => !f.rostro_sincronizado));
@@ -80,12 +79,12 @@ export function PanelPage() {
       } else if (usuario.tipoRegistro === 'familia' && familiaresData.length === 0) {
         setView('agregar-familiar');
       } else {
-        setView('contacto-emergencia');
+        await completarRegistroYRedireccionar();
       }
     } else {
       setView('dashboard');
     }
-  }, [usuario]);
+  }, [usuario, completarRegistroYRedireccionar]);
 
   useEffect(() => {
     cargarDatos();
@@ -110,7 +109,7 @@ export function PanelPage() {
       if (titularData && !titularData.rostro_sincronizado) {
         setView('sincronizar-biometria');
       } else {
-        setView('contacto-emergencia');
+        await completarRegistroYRedireccionar();
       }
     }
   };
@@ -145,7 +144,7 @@ export function PanelPage() {
     if (tienePendientes) {
       setView('sincronizar-biometria');
     } else {
-      setView('contacto-emergencia');
+      await completarRegistroYRedireccionar();
     }
   };
 
@@ -156,30 +155,10 @@ export function PanelPage() {
     setView('elegir-tipo');
   };
 
-  const handleContactoComplete = async () => {
-    if (!usuario) return;
-    const contactosData = await obtenerContactos(usuario.dni);
-    setContactos(contactosData);
-    setContactoEditando(null);
-    // Marcar registro como completado
-    if (!usuario.registroCompletado) {
-      await actualizarCuenta(usuario.dni, { registroCompletado: true });
-      actualizarUsuario({ registroCompletado: true });
-    }
-    setView('dashboard');
-  };
-
   const handleDeleteFamiliar = async (vinculoId: string) => {
     await eliminarVinculoFamiliar(vinculoId);
     setFamiliares(prev => prev.filter(f => f.vinculoId !== vinculoId));
     setShowDeleteConfirm(null);
-  };
-
-  const handleDeleteContacto = async (id: string) => {
-    if (!usuario) return;
-    await eliminarContacto(usuario.dni, id);
-    setContactos(prev => prev.filter(c => c.id !== id));
-    setShowDeleteContacto(null);
   };
 
   if (!usuario) return null;
@@ -193,7 +172,7 @@ export function PanelPage() {
       {/* Top Nav */}
       <header className="sticky top-0 z-50 w-full border-b border-outline-variant bg-white/90 backdrop-blur-md">
         <div className="flex justify-between items-center px-6 md:px-12 max-w-[1280px] mx-auto h-16">
-          <span className="text-lg font-bold font-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-[#C96442] via-[#0F172A] to-[#C96442] brand-text-animated">
+          <span className="text-lg font-bold font-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-secondary via-primary to-secondary brand-text-animated">
             #YoCuidoMiFamilia
           </span>
           <div className="flex items-center gap-4">
@@ -260,12 +239,13 @@ export function PanelPage() {
             </motion.div>
           )}
 
-          {/* Registro Propio */}
+           {/* Registro Propio */}
           {(view === 'registro-propio' || view === 'editar-propio') && (
             <motion.div key="reg-propio" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="py-8">
               <RegistroPropio
                 dniTitular={usuario.dni}
-                datosExistentes={view === 'editar-propio' ? titular : null}
+                celular={usuario?.celular}
+                datosExistentes={view === 'editar-propio' || !usuario.registroCompletado ? titular : null}
                 onComplete={view === 'editar-propio' ? () => cargarDatos() : handleRegistroPropioComplete}
                 onBack={!usuario.registroCompletado && view === 'registro-propio' ? handleVolverElegirTipo : undefined}
               />
@@ -284,31 +264,18 @@ export function PanelPage() {
                   if (usuario.registroCompletado) {
                     setView('dashboard');
                   } else {
-                    setView('contacto-emergencia');
+                    if (familiares.length > 0) {
+                      setView('dashboard-add-more');
+                    } else {
+                      setView('registro-propio');
+                    }
                   }
                 }}
               />
             </motion.div>
           )}
 
-          {/* Contacto de Emergencia */}
-          {(view === 'contacto-emergencia' || view === 'editar-contacto') && (
-            <motion.div key="contacto" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="py-8">
-              <ContactoEmergenciaForm
-                cuentaDni={usuario.dni}
-                datosExistentes={view === 'editar-contacto' ? contactoEditando : null}
-                onComplete={handleContactoComplete}
-                onCancel={() => {
-                  setContactoEditando(null);
-                  if (usuario.registroCompletado) {
-                    setView('dashboard');
-                  } else if (contactos.length > 0) {
-                    handleContactoComplete();
-                  }
-                }}
-              />
-            </motion.div>
-          )}
+
 
           {/* Dashboard: agregar más familiares? */}
           {view === 'dashboard-add-more' && (
@@ -503,7 +470,7 @@ export function PanelPage() {
                       fams.some(f => !f.rostro_sincronizado);
 
                     if (!tienePendientes) {
-                      setView('contacto-emergencia');
+                      await completarRegistroYRedireccionar();
                     } else {
                       alert('Aún tienes registros pendientes de sincronización biométrica.');
                     }
@@ -514,7 +481,7 @@ export function PanelPage() {
                   }
                   className="btn-primary w-full justify-center py-3.5"
                 >
-                  Continuar a Contacto de Emergencia
+                  Continuar
                   <span className="material-symbols-outlined text-lg">arrow_forward</span>
                 </button>
                 <p className="text-center text-xs text-on-surface-variant">
@@ -540,20 +507,13 @@ export function PanelPage() {
                     <span className="material-symbols-outlined text-lg">person_add</span>
                     Agregar Familiar
                   </button>
-                  <button
-                    onClick={() => setView('contacto-emergencia')}
-                    className="btn-secondary text-sm"
-                  >
-                    <span className="material-symbols-outlined text-lg">contact_phone</span>
-                    Agregar Contacto
-                  </button>
                 </div>
               </div>
 
               {/* Sección: Mi perfil + Familiares */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="w-full">
                 {/* Columna Izquierda: Telaraña Familiar */}
-                <div className="lg:col-span-2">
+                <div className="w-full">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider flex items-center gap-2">
                       <span className="material-symbols-outlined text-lg">account_tree</span>
@@ -673,42 +633,6 @@ export function PanelPage() {
                     <p className="text-center text-on-surface-variant py-8 text-sm">No hay red familiar registrada.</p>
                   )}
                 </div>
-
-                {/* Columna Derecha: Contactos de Emergencia */}
-                <div className="lg:col-span-1">
-                  <div className="bg-surface-container rounded-3xl p-6 border border-outline-variant/30">
-                    <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-6 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-lg">emergency</span>
-                      Contactos
-                    </h3>
-                    
-                    <div className="flex flex-col gap-4">
-                      {contactos.map(c => (
-                        <ContactoCard
-                          key={c.id}
-                          contacto={c}
-                          onEdit={() => { setContactoEditando(c); setView('editar-contacto'); }}
-                          onDelete={() => setShowDeleteContacto(c.id!)}
-                        />
-                      ))}
-                      
-                      {contactos.length === 0 && (
-                        <div className="text-center py-6">
-                          <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-3">
-                            <span className="material-symbols-outlined text-secondary text-2xl">contact_phone</span>
-                          </div>
-                          <p className="text-on-surface-variant text-sm mb-4">No hay contactos de emergencia.</p>
-                          <button
-                            onClick={() => setView('contacto-emergencia')}
-                            className="text-secondary text-sm font-semibold hover:underline bg-transparent border-none cursor-pointer"
-                          >
-                            Agregar Contacto
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
               </div>
             </motion.div>
           )}
@@ -739,30 +663,6 @@ export function PanelPage() {
           </div>
         )}
 
-        {/* Modal de confirmación: Eliminar contacto */}
-        {showDeleteContacto && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
-            >
-              <div className="w-14 h-14 rounded-full bg-error-accent/10 flex items-center justify-center mx-auto mb-4">
-                <span className="material-symbols-outlined text-error-accent text-3xl">warning</span>
-              </div>
-              <h3 className="font-headline-md text-lg font-bold text-primary mb-2">¿Eliminar este contacto?</h3>
-              <p className="text-sm text-on-surface-variant mb-6">Se eliminará este contacto de emergencia.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowDeleteContacto(null)} className="btn-secondary flex-1 justify-center">Cancelar</button>
-                <button
-                  onClick={() => handleDeleteContacto(showDeleteContacto)}
-                  className="flex-1 bg-error-accent text-white py-3 px-6 rounded-lg font-semibold border-none cursor-pointer hover:bg-error-accent/90 transition-colors flex items-center justify-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-lg">delete</span>
-                  Eliminar
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
         {/* Modal de Detalles del Familiar */}
         <AnimatePresence>
           {selectedFamiliarModal && (

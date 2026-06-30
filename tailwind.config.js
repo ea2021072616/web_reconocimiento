@@ -8,11 +8,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        "primary": "#0F172A",
-        "secondary": "#C96442",
-        "background": "#F8FAFC",
+        "primary": "var(--color-dark)",         /* Obsidiana */
+        "secondary": "var(--color-primary)",    /* Terracota */
+        "brand-blue": "var(--color-secondary)", /* Azul Confianza */
+        "background": "var(--color-bg-warm)",   /* Crema Fondo */
         "surface": "#FFFFFF",
-        "surface-container": "#F8FAFC",
+        "surface-container": "var(--color-bg-warm)",
         "on-surface": "#1E293B",
         "on-surface-variant": "#475569",
         "outline-variant": "#E2E8F0",

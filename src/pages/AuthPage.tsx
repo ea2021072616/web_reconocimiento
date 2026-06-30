@@ -27,7 +27,7 @@ export function AuthPage() {
         <div className="flex justify-between items-center px-6 md:px-12 max-w-[1280px] mx-auto h-16">
           <button
             onClick={() => navigate('/')}
-            className="text-xl font-bold font-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-[#C96442] via-[#0F172A] to-[#C96442] brand-text-animated cursor-pointer bg-transparent border-none"
+            className="text-xl font-bold font-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-secondary via-primary to-secondary brand-text-animated cursor-pointer bg-transparent border-none"
           >
             #YoCuidoMiFamilia
           </button>

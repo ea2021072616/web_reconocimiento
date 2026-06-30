@@ -13,6 +13,7 @@ export interface PersonaData {
   nombres: string;
   apellidos: string;
   fotoUrl: string;
+  telefono?: string;
   datosMedicos: DatosMedicos;
   consentimiento: boolean;
   cuentaTitular?: string; // Legacy
@@ -69,6 +70,7 @@ export const registrarPersona = async (
     nombres: string;
     apellidos: string;
     fotoBase64: string;
+    telefono?: string;
     datosMedicos: DatosMedicos;
     consentimiento: boolean;
     cuentaTitular: string;
@@ -97,6 +99,7 @@ export const registrarPersona = async (
     nombres: data.nombres,
     apellidos: data.apellidos,
     fotoUrl,
+    telefono: data.telefono || '',
     datosMedicos: data.datosMedicos,
     consentimiento: data.consentimiento,
     cuentaTitular: data.cuentaTitular,

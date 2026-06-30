@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { QRPhotoCapture } from '../QRPhotoCapture';
 import { ChipSelector, ENFERMEDADES_CRONICAS, CONDICIONES_ESPECIALES } from '../ChipSelector';
-import { registrarPersona, actualizarPersona, verificarPersonaExiste, crearVinculoFamiliar, obtenerPersona, verificarVinculoExiste, asegurarSincronizacionCompleta, type FamiliarData, type PersonaData } from '../../services/personaService';
+import { registrarPersona, actualizarPersona, crearVinculoFamiliar, obtenerPersona, verificarVinculoExiste, asegurarSincronizacionCompleta, type FamiliarData } from '../../services/personaService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -33,6 +33,7 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
   const [relacion, setRelacion] = useState(datosExistentes?.relacion || '');
   const [nombres, setNombres] = useState(datosExistentes?.nombres || '');
   const [apellidos, setApellidos] = useState(datosExistentes?.apellidos || '');
+  const [telefono, setTelefono] = useState(datosExistentes?.telefono || '');
   const [fotoBase64, setFotoBase64] = useState('');
   const [enfermedades, setEnfermedades] = useState<string[]>(datosExistentes?.datosMedicos?.enfermedadesCronicas || []);
   const [condiciones, setCondiciones] = useState<string[]>(datosExistentes?.datosMedicos?.condicionesEspeciales || []);
@@ -44,7 +45,6 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
   // Nuevo estado para saber si el DNI ya existe
   const [dniExiste, setDniExiste] = useState(false);
   const [checkingDni, setCheckingDni] = useState(false);
-  const [personaExistenteInfo, setPersonaExistenteInfo] = useState<PersonaData | null>(null);
   const [wantsNewPhoto, setWantsNewPhoto] = useState(false);
   const [vinculoExistente, setVinculoExistente] = useState(false);
 
@@ -54,7 +54,6 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
   useEffect(() => {
     if (isEdit || !dniValido) {
       setDniExiste(false);
-      setPersonaExistenteInfo(null);
       setVinculoExistente(false);
       return;
     }
@@ -65,12 +64,10 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
         const persona = await obtenerPersona(dni);
         if (persona) {
           setDniExiste(true);
-          setPersonaExistenteInfo(persona);
           const vinculo = await verificarVinculoExiste(cuentaTitularDni, dni);
           setVinculoExistente(vinculo);
         } else {
           setDniExiste(false);
-          setPersonaExistenteInfo(null);
           setVinculoExistente(false);
         }
       } catch (e) {
@@ -131,8 +128,11 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
 
   // Si existe el DNI, solo necesitamos la relacion. Si no existe, necesitamos todo.
   const photoValid = (isEdit && !wantsNewPhoto) ? true : (fotoBase64.length > 100);
+  const telefonoValido = /^[9]\d{8}$/.test(telefono.trim());
   const formValido = dniValido && !vinculoExistente && dni !== cuentaTitularDni && relacion.trim() !== '' && (
-    dniExiste ? true : (nombres.trim() && apellidos.trim() && photoValid && autorizacion)
+    isEdit 
+      ? (nombres.trim() && apellidos.trim() && telefonoValido)
+      : (dniExiste ? true : (nombres.trim() && apellidos.trim() && telefonoValido && photoValid && autorizacion))
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,6 +146,7 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
         await actualizarPersona(datosExistentes!.dni, {
           nombres: nombres.trim(),
           apellidos: apellidos.trim(),
+          telefono: telefono.trim(),
           datosMedicos: {
             enfermedadesCronicas: enfermedades,
             condicionesEspeciales: condiciones,
@@ -169,6 +170,7 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
             nombres: nombres.trim(),
             apellidos: apellidos.trim(),
             fotoBase64,
+            telefono: telefono.trim(),
             datosMedicos: {
               enfermedadesCronicas: enfermedades,
               condicionesEspeciales: condiciones,
@@ -271,30 +273,60 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
       )}
 
       {/* Nombres */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-on-surface">Nombres</label>
-        <input
-          type="text"
-          value={nombres}
-          readOnly
-          placeholder="Consulta el DNI para autocompletar..."
-          className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
-          required
-        />
-      </div>
+      {(!dniExiste || isEdit) && (
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-on-surface">Nombres</label>
+          <input
+            type="text"
+            value={nombres}
+            readOnly
+            placeholder="Consulta el DNI para autocompletar..."
+            className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
+            required
+          />
+        </div>
+      )}
 
       {/* Apellidos */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-on-surface">Apellidos</label>
-        <input
-          type="text"
-          value={apellidos}
-          readOnly
-          placeholder="Consulta el DNI para autocompletar..."
-          className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
-          required
-        />
-      </div>
+      {(!dniExiste || isEdit) && (
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-semibold text-on-surface">Apellidos</label>
+          <input
+            type="text"
+            value={apellidos}
+            readOnly
+            placeholder="Consulta el DNI para autocompletar..."
+            className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
+            required
+          />
+        </div>
+      )}
+
+      {/* Teléfono */}
+      <AnimatePresence mode="popLayout">
+        {!dniExiste && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-col gap-2"
+          >
+            <label className="text-sm font-semibold text-on-surface">Teléfono Celular</label>
+            <input
+              type="tel"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 9))}
+              placeholder="Ej. 987654321"
+              maxLength={9}
+              className={`input-field bg-white ${telefono && !telefonoValido ? 'border-error-accent text-error-accent' : ''}`}
+              required
+            />
+            {telefono && !telefonoValido && (
+              <p className="text-xs text-error-accent font-semibold mt-0.5">El teléfono debe tener 9 dígitos y empezar con 9.</p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Parentesco */}
       <AnimatePresence mode="popLayout">
@@ -335,10 +367,10 @@ export const RegistroFamiliar = ({ cuentaTitularDni, datosExistentes, onComplete
             <span className="material-symbols-outlined text-primary mt-0.5">verified_user</span>
             <div className="w-full">
               <p className="font-semibold text-primary text-sm mb-1">
-                ¡Familiar encontrado en el sistema!
+                ¡Familiar encontrado: {nombres} {apellidos}!
               </p>
               <p className="text-xs text-on-surface-variant font-medium">
-                No es necesario volver a tomarle fotos ni llenar sus datos médicos. Solo guarda para agregarlo a tu red familiar.
+                Esta persona ya está registrada en el sistema. No es necesario volver a tomarle fotos ni llenar sus datos médicos. Solo selecciona el parentesco y guarda para agregarlo a tu red.
               </p>
             </div>
           </motion.div>

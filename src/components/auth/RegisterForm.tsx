@@ -240,17 +240,24 @@ export const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
 
         {step === 'terminos' && (
           <motion.div key="terminos" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col gap-4">
-            <div className="bg-surface-container border border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant leading-relaxed max-h-48 overflow-y-auto">
-              <p className="font-semibold text-on-surface mb-2">Términos y Condiciones</p>
-              <p>Al crear tu cuenta en la plataforma #YoCuidoMiFamilia (impulsada por SIRE), aceptas que:</p>
-              <ul className="list-disc pl-5 mt-2 flex flex-col gap-1">
-                <li>Tus datos personales serán almacenados de forma segura y encriptada.</li>
-                <li>La información registrada será utilizada exclusivamente para fines de emergencia y prevención.</li>
-                <li>Solo instituciones autorizadas (bomberos, hospitales, policía, defensa civil) podrán acceder a tus datos en caso de emergencia real.</li>
-                <li>Puedes solicitar la eliminación de tu cuenta y datos en cualquier momento.</li>
-                <li>Las fotos de rostro son utilizadas únicamente para reconocimiento en situaciones de emergencia.</li>
-                <li>Tus datos nunca serán vendidos ni compartidos con fines comerciales o publicitarios.</li>
-              </ul>
+            <div className="bg-surface-container border border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant leading-relaxed max-h-60 overflow-y-auto flex flex-col gap-3">
+              <p className="font-bold text-primary text-base">Términos, Condiciones y Consentimiento Legal</p>
+              
+              <p className="font-semibold text-on-surface">1. Consentimiento de Tratamiento de Datos Biométricos y Médicos</p>
+              <p>Al registrarte en la plataforma #YoCuidoMiFamilia (operada por SIRE), otorgas tu consentimiento libre, previo, expreso, e inequívoco (conforme a la Ley N° 29733 de Protección de Datos Personales de Perú) para el tratamiento de tus datos personales, ficha de salud y datos biométricos (patrón facial) con fines de identificación y auxilio inmediato.</p>
+
+              <p className="font-semibold text-on-surface">2. Autorización de Registro de Familiares (Terceros)</p>
+              <p className="text-secondary font-semibold flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[18px]">gavel</span>
+                Declaración de Consentimiento Familiar:
+              </p>
+              <p>Declaras bajo compromiso de veracidad que cuentas con el **consentimiento explícito** y la autorización de cada miembro de tu familia que registres en la plataforma para subir su información médica, número de teléfono y fotografía biométrica. En caso de menores de edad o personas bajo tu tutela, declaras actuar en calidad de tutor legal o representante autorizado.</p>
+
+              <p className="font-semibold text-on-surface">3. Uso Exclusivo en Situaciones de Emergencia</p>
+              <p>Los datos de salud y los patrones de reconocimiento facial serán almacenados de forma encriptada y **solo serán consultados por personal de auxilio autorizado** (cuerpo de bomberos, personal de salud, defensa civil y policía) ante situaciones de emergencia real y rescate.</p>
+
+              <p className="font-semibold text-on-surface">4. Confidencialidad y Derechos ARCO</p>
+              <p>Garantizamos que la información nunca será compartida con terceros con fines comerciales o publicitarios. Como titular de la cuenta, puedes ejercer tus derechos de Acceso, Rectificación, Cancelación y Oposición (Derechos ARCO) para eliminar o modificar tus datos y los de tu red familiar en cualquier momento desde el panel de control o mediante soporte.</p>
             </div>
             <label className="flex items-start gap-3 cursor-pointer select-none">
               <input

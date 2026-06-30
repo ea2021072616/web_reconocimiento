@@ -6,24 +6,27 @@ import { db } from '../../config/firebase';
 import { QRPhotoCapture } from '../QRPhotoCapture';
 import { ChipSelector, ENFERMEDADES_CRONICAS, CONDICIONES_ESPECIALES } from '../ChipSelector';
 import { registrarPersona, actualizarPersona, asegurarSincronizacionCompleta, type PersonaData } from '../../services/personaService';
+import { actualizarCuenta } from '../../services/authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface RegistroPropioProps {
   dniTitular: string;
+  celular?: string;
   datosExistentes?: PersonaData | null;
   onComplete: () => void;
   onBack?: () => void;
 }
 
-export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack }: RegistroPropioProps) => {
+export const RegistroPropio = ({ dniTitular, celular, datosExistentes, onComplete, onBack }: RegistroPropioProps) => {
   const isEdit = !!datosExistentes;
   const [nombres, setNombres] = useState(datosExistentes?.nombres || '');
   const [apellidos, setApellidos] = useState(datosExistentes?.apellidos || '');
+  const [telefono, setTelefono] = useState(datosExistentes?.telefono || celular || '');
   const [fotoBase64, setFotoBase64] = useState('');
-  const [enfermedades, setEnfermedades] = useState<string[]>(datosExistentes?.datosMedicos.enfermedadesCronicas || []);
-  const [condiciones, setCondiciones] = useState<string[]>(datosExistentes?.datosMedicos.condicionesEspeciales || []);
-  const [observaciones, setObservaciones] = useState(datosExistentes?.datosMedicos.observaciones || '');
+  const [enfermedades, setEnfermedades] = useState<string[]>(datosExistentes?.datosMedicos?.enfermedadesCronicas || []);
+  const [condiciones, setCondiciones] = useState<string[]>(datosExistentes?.datosMedicos?.condicionesEspeciales || []);
+  const [observaciones, setObservaciones] = useState(datosExistentes?.datosMedicos?.observaciones || '');
   const [consentimiento, setConsentimiento] = useState(datosExistentes?.consentimiento || false);
   const [loading, setLoading] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
@@ -102,7 +105,8 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
     }
   };
 
-  const formValido = nombres.trim() && apellidos.trim() && (fotoBase64 || datosExistentes?.fotoUrl) && consentimiento;
+  const telefonoValido = /^[9]\d{8}$/.test(telefono.trim());
+  const formValido = nombres.trim() && apellidos.trim() && telefonoValido && (fotoBase64 || datosExistentes?.fotoUrl) && consentimiento;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +118,7 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
         await actualizarPersona(dniTitular, {
           nombres: nombres.trim(),
           apellidos: apellidos.trim(),
+          telefono: telefono.trim(),
           datosMedicos: {
             enfermedadesCronicas: enfermedades,
             condicionesEspeciales: condiciones,
@@ -121,12 +126,16 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
           },
           consentimiento,
         }, fotoBase64 || undefined);
+        
+        // Mantener sincronizado el celular de la cuenta
+        await actualizarCuenta(dniTitular, { celular: telefono.trim() });
       } else {
         const result = await registrarPersona({
           dni: dniTitular,
           nombres: nombres.trim(),
           apellidos: apellidos.trim(),
           fotoBase64,
+          telefono: telefono.trim(),
           datosMedicos: {
             enfermedadesCronicas: enfermedades,
             condicionesEspeciales: condiciones,
@@ -141,6 +150,9 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
           setLoading(false);
           return;
         }
+
+        // Mantener sincronizado el celular de la cuenta
+        await actualizarCuenta(dniTitular, { celular: telefono.trim() });
 
         // Ejecutar sincronización de RENIEC y Qdrant
         await asegurarSincronizacionCompleta(dniTitular, fotoBase64);
@@ -203,6 +215,23 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
           className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
           required
         />
+      </div>
+
+      {/* Teléfono Celular */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-on-surface">Teléfono Celular</label>
+        <input
+          type="tel"
+          value={telefono}
+          onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 9))}
+          placeholder="Ej. 987654321"
+          maxLength={9}
+          className={`input-field bg-white ${telefono && !telefonoValido ? 'border-error-accent text-error-accent' : ''}`}
+          required
+        />
+        {telefono && !telefonoValido && (
+          <p className="text-xs text-error-accent font-semibold mt-0.5">El teléfono debe tener 9 dígitos y empezar con 9.</p>
+        )}
       </div>
 
       {(!nombres || !apellidos) && (
