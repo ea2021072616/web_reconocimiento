@@ -217,7 +217,7 @@ export function LandingPage() {
               >
                 {/* Family Image */}
                 <img
-                  src="/imagen_fondo.jpg"
+                  src={`${import.meta.env.BASE_URL}imagen_fondo.jpg`}
                   alt="Familia protegida"
                   className="w-full h-full object-cover"
                 />
