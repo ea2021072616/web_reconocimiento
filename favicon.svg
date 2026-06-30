@@ -18,11 +18,10 @@
     </filter>
   </defs>
 
-  <!-- Background Glow -->
+  <!-- Solid Light Background inside Shield (to prevent transparency in dark browser tabs) -->
   <path 
     d="M50 10 C65 10 80 14 85 24 C85 54 65 78 50 90 C35 78 15 54 15 24 C20 14 35 10 50 10 Z" 
-    fill="#0F172A" 
-    opacity="0.08" 
+    fill="#F8FAFC" 
   />
 
   <!-- Main Shield Outer Border -->
