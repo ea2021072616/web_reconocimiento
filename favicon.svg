@@ -1,43 +1,23 @@
 <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <!-- Gradient for Shield (Obsidiana) -->
-    <linearGradient id="shieldGrad" x1="15" y1="10" x2="85" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#475569" />
-      <stop offset="100%" stopColor="#0F172A" />
-    </linearGradient>
-
-    <!-- Gradient for Heart (Terracota) -->
-    <linearGradient id="heartGrad" x1="30" y1="20" x2="70" y2="72" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#f97316" />
-      <stop offset="100%" stopColor="#b34b28" />
-    </linearGradient>
-
-    <!-- Drop shadow for the inner heart to give it depth -->
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="1.5" floodColor="#0F172A" floodOpacity="0.3" />
-    </filter>
-  </defs>
-
-  <!-- Solid Light Background inside Shield (to prevent transparency in dark browser tabs) -->
+  <!-- Solid Light Background inside Shield -->
   <path 
     d="M50 10 C65 10 80 14 85 24 C85 54 65 78 50 90 C35 78 15 54 15 24 C20 14 35 10 50 10 Z" 
     fill="#F8FAFC" 
   />
 
-  <!-- Main Shield Outer Border -->
+  <!-- Main Shield Outer Border (Solid slate-700) -->
   <path 
     d="M50 10 C65 10 80 14 85 24 C85 54 65 78 50 90 C35 78 15 54 15 24 C20 14 35 10 50 10 Z" 
-    stroke="url(#shieldGrad)" 
+    stroke="#334155" 
     strokeWidth="6" 
     strokeLinecap="round" 
     strokeLinejoin="round" 
   />
 
-  <!-- Inner Heart (Solid Terracota Gradient with drop shadow) -->
+  <!-- Inner Heart (Solid Orange) -->
   <path 
     d="M50 31 C43 18 25 22 30 42 C34 58 46 67 50 71 C54 67 66 58 70 42 C75 22 57 18 50 31 Z" 
-    fill="url(#heartGrad)" 
-    filter="url(#shadow)"
+    fill="#f97316" 
   />
 
   <!-- Emergency Pulse/Line inside Heart (White) -->
