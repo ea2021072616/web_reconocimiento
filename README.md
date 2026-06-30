@@ -8,16 +8,25 @@ Este es el sistema web para el registro de personas con condiciones vulnerables 
 - **Firebase:** El proyecto necesita las variables de entorno para funcionar, estas deben estar definidas en un archivo `.env` en la raíz del proyecto (basado en `.env.example`).
 - **API de Reconocimiento:** Para la captura de foto vía QR, la aplicación web debe poder comunicarse con la API de reconocimiento (la cual maneja la conexión WebSocket con el dispositivo móvil). La URL de la API se configura en el `.env`.
 
-## 🛠️ Comandos de Desarrollo
+## 🚀 Instalación y Configuración
+
+Si es la primera vez que clonas este proyecto, sigue estos pasos detallados para hacerlo funcionar:
 
 ### 1. Instalar dependencias
-La primera vez que clonas el repositorio o si se añaden nuevas dependencias, debes instalarlas:
+Ejecuta el siguiente comando para descargar todos los paquetes necesarios del proyecto:
 ```bash
 npm install
 ```
 
-### 2. Ejecutar Servidor de Desarrollo
-Para correr el proyecto en modo de desarrollo:
+### 2. Configurar las variables de entorno
+1. Crea una copia del archivo `.env.example` en la raíz del proyecto y renómbralo a `.env`:
+   * En Windows (PowerShell): `cp .env.example .env`
+   * En Linux/Mac: `cp .env.example .env`
+2. Abre el nuevo archivo `.env` y rellena las credenciales de tu proyecto de Firebase.
+3. Asegúrate de configurar la variable `VITE_API_URL` apuntando a tu API local (`http://localhost:8000`) o a tu túnel de Cloudflare.
+
+### 3. Ejecutar Servidor de Desarrollo
+Para arrancar el servidor local en modo de desarrollo:
 ```bash
 npm run dev
 ```
