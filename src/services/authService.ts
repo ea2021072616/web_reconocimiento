@@ -7,6 +7,8 @@ export interface CuentaData {
   passwordHash: string;
   celular?: string;
   correo?: string;
+  nombres?: string;
+  apellidos?: string;
   aceptoTerminos: boolean;
   tipoRegistro: 'solo' | 'familia' | null;
   registroCompletado: boolean;
@@ -43,12 +45,45 @@ export const crearCuenta = async (data: {
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash(data.password, salt);
 
+  // Consultar RENIEC mediante json.pe de forma tolerante a errores
+  let nombres: string | null = null;
+  let apellidos: string | null = null;
+
+  try {
+    const apiKey = import.meta.env.VITE_RENIEC_API_KEY || import.meta.env.RENIEC_API_KEY || 'd43b2d7d63af0ae44998244ecbfe8f66db8f3cceca6c9b535bd571fb48e1';
+    const response = await fetch('https://api.json.pe/api/dni', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ dni: data.dni }),
+    });
+
+    if (response.ok) {
+      const resData = await response.json();
+      if (resData.success && resData.data) {
+        nombres = resData.data.nombres || null;
+        const pat = resData.data.apellido_paterno || resData.data.apellidoPaterno || '';
+        const mat = resData.data.apellido_materno || resData.data.apellidoMaterno || '';
+        const fullApellidos = `${pat} ${mat}`.trim();
+        if (fullApellidos.length > 0) {
+          apellidos = fullApellidos;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error consultando RENIEC en registro:', err);
+  }
+
   // Guardar en Firestore
   await setDoc(doc(db, 'cuentas', data.dni), {
     dni: data.dni,
     passwordHash,
     celular: data.celular || null,
     correo: data.correo || null,
+    nombres,
+    apellidos,
     aceptoTerminos: true,
     tipoRegistro: null,
     registroCompletado: false,

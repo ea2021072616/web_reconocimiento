@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { QRPhotoCapture } from '../QRPhotoCapture';
 import { ChipSelector, ENFERMEDADES_CRONICAS, CONDICIONES_ESPECIALES } from '../ChipSelector';
 import { registrarPersona, actualizarPersona, type PersonaData } from '../../services/personaService';
@@ -24,7 +26,82 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
   const [observaciones, setObservaciones] = useState(datosExistentes?.datosMedicos.observaciones || '');
   const [consentimiento, setConsentimiento] = useState(datosExistentes?.consentimiento || false);
   const [loading, setLoading] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchCuenta = async () => {
+      if (!db) return;
+      try {
+        const docRef = doc(db, 'cuentas', dniTitular);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.nombres) {
+            setNombres(data.nombres);
+          }
+          if (data.apellidos) {
+            setApellidos(data.apellidos);
+          }
+        }
+      } catch (err) {
+        console.error('Error al cargar datos de cuenta:', err);
+      }
+    };
+
+    fetchCuenta();
+  }, [dniTitular]);
+
+  const handleSincronizar = async () => {
+    if (!db) return;
+    setError('');
+    setSincronizando(true);
+    try {
+      const apiKey = import.meta.env.VITE_RENIEC_API_KEY || import.meta.env.RENIEC_API_KEY || 'd43b2d7d63af0ae44998244ecbfe8f66db8f3cceca6c9b535bd571fb48e1';
+      const response = await fetch('https://api.json.pe/api/dni', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ dni: dniTitular }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al consultar la API de RENIEC.');
+      }
+
+      const resData = await response.json();
+      if (resData.success && resData.data) {
+        const apiNombres = resData.data.nombres || '';
+        const pat = resData.data.apellido_paterno || resData.data.apellidoPaterno || '';
+        const mat = resData.data.apellido_materno || resData.data.apellidoMaterno || '';
+        const apiApellidos = `${pat} ${mat}`.trim();
+
+        if (!apiNombres && !apiApellidos) {
+          throw new Error('No se encontraron datos asociados a este DNI.');
+        }
+
+        // Guardar en Firestore
+        const docRef = doc(db, 'cuentas', dniTitular);
+        await setDoc(docRef, {
+          nombres: apiNombres,
+          apellidos: apiApellidos,
+        }, { merge: true });
+
+        // Actualizar estados locales
+        setNombres(apiNombres);
+        setApellidos(apiApellidos);
+      } else {
+        throw new Error(resData.message || 'La consulta no devolvió datos válidos.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'No se pudo sincronizar los datos de RENIEC.');
+    } finally {
+      setSincronizando(false);
+    }
+  };
 
   const formValido = nombres.trim() && apellidos.trim() && (fotoBase64 || datosExistentes?.fotoUrl) && consentimiento;
 
@@ -107,9 +184,9 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
         <input
           type="text"
           value={nombres}
-          onChange={(e) => setNombres(e.target.value)}
-          placeholder="Ej. Juan Carlos"
-          className="input-field"
+          readOnly
+          placeholder="Sincroniza tus datos de RENIEC..."
+          className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
           required
         />
       </div>
@@ -119,12 +196,38 @@ export const RegistroPropio = ({ dniTitular, datosExistentes, onComplete, onBack
         <input
           type="text"
           value={apellidos}
-          onChange={(e) => setApellidos(e.target.value)}
-          placeholder="Ej. Pérez López"
-          className="input-field"
+          readOnly
+          placeholder="Sincroniza tus datos de RENIEC..."
+          className="input-field bg-surface-container/50 text-on-surface/70 cursor-not-allowed border-outline/30"
           required
         />
       </div>
+
+      {(!nombres || !apellidos) && (
+        <div className="flex flex-col gap-3 -mt-2 bg-secondary/5 border border-secondary/20 p-4 rounded-2xl">
+          <div className="flex items-start gap-2.5">
+            <span className="material-symbols-outlined text-secondary text-lg mt-0.5">info</span>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Tus datos de RENIEC no están sincronizados en el sistema. Presiona el botón para recuperarlos automáticamente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSincronizar}
+            disabled={sincronizando}
+            className="btn-secondary w-full justify-center gap-2 border-secondary/30 text-secondary bg-secondary/5 hover:bg-secondary/10"
+          >
+            {sincronizando ? (
+              <><Loader2 size={16} className="animate-spin" /> Sincronizando con RENIEC...</>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-lg">sync</span>
+                Sincronizar con RENIEC
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-semibold text-on-surface flex items-center gap-2">
